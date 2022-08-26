@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'ecommerce_app',
+    'paypal.standard.ipn',
 ]
 
 MIDDLEWARE = [
@@ -124,3 +125,6 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 MEDIA_URL = '/media/'
+
+PAYPAL_RECEIVER_EMAIL = 'sb-lnkvd20394753@business.example.com'
+PAYPAL_TEST = True
