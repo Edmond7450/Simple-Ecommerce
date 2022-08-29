@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from paypal.standard.forms import PayPalPaymentsForm
 
 from .models import Product, Order, LineItem
-from .forms import CartForm, CheckoutForm
+from .forms import CartForm, CheckoutForm, SubscriptionForm
 from . import cart
 
 
@@ -118,3 +118,52 @@ def payment_done(request):
 @csrf_exempt
 def payment_canceled(request):
     return render(request, 'ecommerce_app/payment_cancelled.html')
+
+
+def subscription(request):
+    if request.method == 'POST':
+        f = SubscriptionForm(request.POST)
+        if f.is_valid():
+            request.session['subscription_plan'] = request.POST.get('plans')
+            return redirect('process_subscription')
+    else:
+        f = SubscriptionForm()
+    return render(request, 'ecommerce_app/subscription_form.html', locals())
+
+
+def process_subscription(request):
+    subscription_plan = request.session.get('subscription_plan')
+    host = request.get_host()
+
+    if subscription_plan == '1-month':
+        price = "10"
+        billing_cycle = 1
+        billing_cycle_unit = "M"
+    elif subscription_plan == '6-month':
+        price = "50"
+        billing_cycle = 6
+        billing_cycle_unit = "M"
+    else:
+        price = "90"
+        billing_cycle = 1
+        billing_cycle_unit = "Y"
+
+    paypal_dict = {
+        "cmd": "_xclick-subscriptions",
+        'business': settings.PAYPAL_RECEIVER_EMAIL,
+        "a3": price,  # monthly price
+        "p3": billing_cycle,  # duration of each unit (depends on unit)
+        "t3": billing_cycle_unit,  # duration unit ("M for Month")
+        "src": "1",  # make payments recur
+        "sra": "1",  # reattempt payment on payment error
+        "no_note": "1",  # remove extra notes (optional)
+        'item_name': 'Content subscription',
+        'custom': 1,  # custom data, pass something meaningful here
+        'currency_code': 'USD',
+        'notify_url': 'http://{}{}'.format(host, reverse('paypal-ipn')),
+        'return_url': 'http://{}{}'.format(host, reverse('payment_done')),
+        'cancel_return': 'http://{}{}'.format(host, reverse('payment_cancelled')),
+    }
+
+    form = PayPalPaymentsForm(initial=paypal_dict, button_type="subscribe")
+    return render(request, 'ecommerce_app/process_subscription.html', locals())
